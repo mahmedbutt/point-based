@@ -7,50 +7,55 @@ import { LineBasicMaterial } from "three";
 import { Line } from "three";
 
 
+// This function retrieves directions between two locations using the Google Maps Directions API
 export async function getDirections(loader, origin = { placeId: 'ChIJDbdkHFQayUwR7-8fITgxTmU' }, destination = { placeId: 'ChIJpTvG15DL1IkRd8S0KlBVNTI' }) {
 
+  // Asynchronously import the required library (geometry) using the loader
   await loader.importLibrary("geometry");
 
+  // Return a promise to handle asynchronous behavior
   return new Promise((resolve, reject) => {
+    // Initialize the DirectionsService provided by Google Maps API
     const directionsService = new google.maps.DirectionsService();
+    // Set up the request object containing origin, destination, and travel mode
     const request = {
-      origin: { placeId: origin.placeId },
-      destination: { placeId: destination.placeId },
-      travelMode: google.maps.TravelMode.DRIVING,
+      origin: { placeId: origin.placeId }, // Origin location
+      destination: { placeId: destination.placeId }, // Destination location
+      travelMode: google.maps.TravelMode.DRIVING, // Travel mode (driving)
     };
 
+    // Call the DirectionsService's route method to calculate directions
     directionsService.route(request, (result, status) => {
+      // Check if the request was successful
       if (status === "OK") {
+        // Check if there are any routes returned
         if (result.routes && result.routes.length > 0) {
-          const route = result.routes[0];
-          if (route.overview_path) {
+          // Extract all steps from the route
+          let steps = result?.routes[0].legs[0].steps;
+          let allPoints = [];
 
-            let steps = result?.routes[0].legs[0].steps;
-            let allPoints = [];
-
-            for (let step of steps) {
-              let path = step.path;
-              allPoints = allPoints.concat(path);
-            }
-
-            const lineString = {
-              type: "LineString",
-              coordinates: allPoints.map((point) => [point.lng(), point.lat()]),
-            };
-
-            resolve(lineString);
-          } else {
-            const res = []
-            resolve(res);
+          // Concatenate all path points from each step into one array
+          for (let step of steps) {
+            let path = step.path;
+            allPoints = allPoints.concat(path);
           }
+
+          // Convert the concatenated points into a GeoJSON LineString format
+          const lineString = {
+            type: "LineString",
+            coordinates: allPoints.map((point) => [point.lng(), point.lat()]), // Convert LatLng objects to [lng, lat] format
+          };
+
+          // Resolve the promise with the LineString
+          resolve(lineString);
         } else {
+          // If no routes are available, resolve with an empty array
           const res = []
-          resolve(res);
           resolve(res);
         }
       } else {
+        // If the request was not successful, resolve with an empty array
         const res = []
-        resolve(res);
         resolve(res);
       }
     });
@@ -62,6 +67,7 @@ const easingFunction = CustomEase.create(
   'custom',
   'M0,0 C0,0 0.07,0.607 0.089,0.659 0.102,0.695 0.12,0.786 0.129,0.82 0.141,0.871 0.175,0.884 0.2,0.9 0.22,0.950 0.275,0.955 0.334,0.977 0.349,0.988 0.419,0.995 0.498,0.997 0.499,0.999 0.622,0.9995 0.665,0.9995 0.668,0.9997 0.725,0.9997 0.755,0.9999 0.808,0.99992 0.858,0.99995 0.908,0.99998 0.9980,0.99999 1,0.999990 1,1 ',
 );
+
 function mapRange(
   input,
   inMin,
@@ -86,26 +92,38 @@ function mapRange(
   return outMax - easedInputScale * outputRange + outMin;
 }
 
+// This function is defined to load an HDR texture using RGBELoader from Three.js.
+// It returns a Promise that resolves to the loaded HDR texture.
+
 export function loadHDRITexture() {
-  return new RGBELoader()
-    .setDataType(UnsignedByteType)
-    .setPath('./')
-    .load('industrial_sunset_puresky_2k.hdr');
+  return new RGBELoader()                         // Create a new RGBELoader instance
+    .setDataType(UnsignedByteType)                // Set the data type of the texture to UnsignedByteType
+    .setPath('./')                                // Set the path to the directory where the HDR file is located
+    .load('industrial_sunset_puresky_2k.hdr');   // Load the HDR texture named 'industrial_sunset_puresky_2k.hdr'
 }
+
+// This constant 'hdrTexture' is declared to hold the loaded HDR texture. 
+// It is assigned the value returned by the 'loadHDRITexture' function.
 
 export const hdrTexture = loadHDRITexture();
 
-export function addHDRIToThreebox(tb, hdrTexture) {
-  const light = new AmbientLight(0x404040, 3); // soft white light
-  tb.add(light);
+// This function 'addHDRIToThreebox' is defined to add the loaded HDR texture to a Threebox scene.
+// It takes 'tb' (a Threebox instance) and 'hdrTexture' (the loaded HDR texture) as parameters.
 
+export function addHDRIToThreebox(tb, hdrTexture) {
+  // Create an AmbientLight with color 0x404040 (dark gray) and intensity 3
+  const light = new AmbientLight(0x404040, 3); // soft white light
+  tb.add(light); // Add the light to the Threebox scene
+
+  // Set the mapping of the HDR texture to EquirectangularReflectionMapping
   hdrTexture.mapping = EquirectangularReflectionMapping;
+
+  // Set the environment of the Threebox scene to the loaded HDR texture
   tb.scene.environment = hdrTexture;
 }
 
-export function getScaleFromZoom(zoom) {
-  // const zoom = this.map.getZoom();
 
+export function getScaleFromZoom(zoom) {
   const inputValue = zoom; // Replace with your input value
   const inputMin = 1; // Max min zoom goes under inputmin max
   const inputMax = 18.1;
